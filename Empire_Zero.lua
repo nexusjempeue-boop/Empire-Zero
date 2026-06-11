@@ -1,5 +1,5 @@
 -- =======================================================================
--- 🌐 EMPIRE ZÉRO v6.1 | REVISED MOBILE & CAR MODS UPDATE | CODES FIXES
+-- 🌐 EMPIRE ZÉRO v6.1 | REVISED MOBILE & CAR MODS UPDATE | FIXED LOGO
 -- =======================================================================
 
 local Players = game:GetService("Players")
@@ -413,11 +413,10 @@ end)
 
 
 -- =======================================================================
--- 👁️ GESTION DU BOUTON FLOTTANT (Exécuté en tâche différée pour éviter les bugs)
+-- 👁️ GESTION DU BOUTON FLOTTANT FIXÉ (ICÔNE ROBLOX INTÉGRÉE)
 -- =======================================================================
 task.defer(function()
     local MainGui = nil
-    -- Attente et recherche de la Frame d'interface Kavo UI
     for i = 1, 20 do
         for _, gui in pairs(CoreGui:GetChildren()) do
             if gui:IsA("ScreenGui") and gui:FindFirstChild("Main") then
@@ -432,28 +431,28 @@ task.defer(function()
     if MainGui then
         local MainFrame = MainGui:FindFirstChild("Main")
         
-        -- Création propre du bouton avec l'image demandée
+        -- Bouton principal utilisant une texture de secours système Roblox qui ne peut JAMAIS être noire
         local EmpireToggleButton = Instance.new("ImageButton")
         EmpireToggleButton.Name = "EmpireToggleBtn"
-        EmpireToggleButton.Size = UDim2.new(0, 65, 0, 65)
+        EmpireToggleButton.Size = UDim2.new(0, 60, 0, 60)
         EmpireToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
-        EmpireToggleButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        EmpireToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
         EmpireToggleButton.BackgroundTransparency = 0.1
-        -- Injection directe du lien CDN Discord converti en Asset ID natif utilisable par le moteur Roblox
-        EmpireToggleButton.Image = "http://www.roblox.com/asset/?id=15146826308"
+        EmpireToggleButton.Image = "rbxassetid://7143128148" -- Icône système Roblox garantie visible à 100%
+        EmpireToggleButton.ImageColor3 = Color3.fromRGB(255, 0, 0) -- Teinte Rouge Empire
         EmpireToggleButton.Visible = false
         EmpireToggleButton.Parent = MainGui
 
         local UICorner = Instance.new("UICorner")
-        UICorner.CornerRadius = UDim.new(0, 15)
+        UICorner.CornerRadius = UDim.new(0, 12)
         UICorner.Parent = EmpireToggleButton
 
         local UIStroke = Instance.new("UIStroke")
-        UIStroke.Color = Color3.fromRGB(230, 0, 0) -- Contour Rouge Empire
-        UIStroke.Thickness = 2.5
+        UIStroke.Color = Color3.fromRGB(255, 0, 0)
+        UIStroke.Thickness = 2
         UIStroke.Parent = EmpireToggleButton
 
-        -- Script de glissement (Drag) pour déplacer le logo à l'écran
+        -- Script de glissement (Drag)
         local dragging, dragInput, dragStart, startPos
         EmpireToggleButton.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -477,7 +476,7 @@ task.defer(function()
             end
         end)
 
-        -- Connexion au bouton de fermeture d'origine Kavo
+        -- Liaison de fermeture automatique
         local CloseBtn = nil
         if MainFrame and MainFrame:FindFirstChild("TopBar") then
             CloseBtn = MainFrame.TopBar:FindFirstChild("CloseBtn") or MainFrame.TopBar:FindFirstChild("Close")
@@ -489,7 +488,6 @@ task.defer(function()
                 EmpireToggleButton.Visible = true
             end)
         else
-            -- Secours si Kavo a masqué ou changé la structure de la croix
             local fallbackClose = MainFrame:findFirstChild("CloseBtn", true) or MainFrame:findFirstChild("Close", true)
             if fallbackClose and fallbackClose:IsA("GuiButton") then
                 fallbackClose.MouseButton1Click:Connect(function()
@@ -499,7 +497,6 @@ task.defer(function()
             end
         end
 
-        -- Clic sur le logo pour le faire disparaître et ré-afficher le GUI complet
         EmpireToggleButton.MouseButton1Click:Connect(function()
             MainFrame.Visible = true
             EmpireToggleButton.Visible = false
