@@ -1,5 +1,6 @@
 -- =======================================================================
---  🌐 EMPIRE ZÉRO v5.0 | INTERFACE SÉCURISÉE | Développé par KTH
+--  🌐 EMPIRE ZÉRO v6.0 | CAR MODS UPDATE | KTH X Obscra
+--  🔗 Discord : discord.gg/empirezero
 -- =======================================================================
 
 local Players = game:GetService("Players")
@@ -12,102 +13,166 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- 🛡️ PROTECTION ANTI-BAN (Interception des signaux de report/kick/ban)
+-- 🛡️ PROTECTION ANTI-BAN & BYPASS DE LOGS (KTH X Obscra Edition)
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     if method == "FireServer" and (tostring(self):lower():find("cheat") or tostring(self):lower():find("ban") or tostring(self):lower():find("kick")) then
-        -- On bloque silencieusement la tentative du jeu de te bannir ou de te kick
         return nil
     end
     return oldNamecall(self, ...)
 end)
 
--- 🎨 CHARGEMENT DE L'INTERFACE (Kavo UI Library - Version Bypass)
+-- 🎨 LIBRAIRIE GRAPHIQUE BYPASS (Kavo UI)
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("EMPIRE ZÉRO v5.0 - BY KTH", "DarkTheme")
+local Window = Kavo.CreateLib("EMPIRE ZÉRO v6.0 - discord.gg/empirezero", "DarkTheme")
 
--- Configuration par défaut
-getgenv().FlySpeed = 10
+-- Configuration Globale
+getgenv().CarFlySpeed = 50
+getgenv().InfVitesse = 16
 getgenv().HitboxTaille = 2
 
--- Onglets principaux
+-- Onglets du Menu (Inspiré de image_12a0f8.jpg)
 local MainTab = Window:NewTab("Mouvements")
 local CombatTab = Window:NewTab("Combat")
+local CarTab = Window:NewTab("Car Mods")
 local VisualsTab = Window:NewTab("Visuals")
-local MiscTab = Window:NewTab("Configuration")
+local CreditsTab = Window:NewTab("Credits")
 
 -- ==========================================
--- ONGLET : MOUVEMENTS (VITESSE & FLY)
+-- 🚗 ONGLET : CAR MODS (INSPIRÉ DE VORTEX)
+-- ==========================================
+local CarSection = CarTab:NewSection("Car Mod Options")
+
+-- Fonction pour choper le véhicule actuel du joueur
+local function GetCurrentVehicle()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        if char.Humanoid.SeatPart and char.Humanoid.SeatPart:IsA("VehicleSeat") then
+            return char.Humanoid.SeatPart.AssemblyRootPart, char.Humanoid.SeatPart
+        end
+    end
+    return nil, nil
+end
+
+-- CAR FLY VRAIMENT DÉVELOPPÉ A FOND
+CarSection:NewToggle("Car Fly", "Permet de faire voler votre véhicule", function(state)
+    getgenv().CarFly = state
+    local vehicle, seat = GetCurrentVehicle()
+    
+    if state and vehicle then
+        -- Création des forces physiques stables pour faire voler la voiture
+        local BG = Instance.new("BodyGyro")
+        local BV = Instance.new("BodyVelocity")
+        
+        BG.Name = "EmpireCarGyro"
+        BG.maxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        BG.cframe = vehicle.CFrame
+        BG.Parent = vehicle
+        
+        BV.Name = "EmpireCarVelocity"
+        BV.maxForce = Vector3.new(math.huge, math.huge, math.huge)
+        BV.velocity = Vector3.new(0, 0, 0)
+        BV.Parent = vehicle
+        
+        task.spawn(function()
+            while getgenv().CarFly and task.wait() do
+                local curVehicle, curSeat = GetCurrentVehicle()
+                if curVehicle and curVehicle:FindFirstChild("EmpireCarVelocity") and curVehicle:FindFirstChild("EmpireCarGyro") then
+                    local vel = curVehicle.EmpireCarVelocity
+                    local gyro = curVehicle.EmpireCarGyro
+                    
+                    gyro.cframe = Camera.CFrame
+                    local moveVector = Vector3.new(0, 0, 0)
+                    
+                    -- Contréles ZQSD / Flèches
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Z) then moveVector = moveVector + Camera.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVector = moveVector - Camera.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveVector = moveVector - Camera.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVector = moveVector + Camera.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVector = moveVector + Vector3.new(0, 1, 0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveVector = moveVector - Vector3.new(0, -1, 0) end
+                    
+                    vel.velocity = moveVector * getgenv().CarFlySpeed
+                else
+                    break
+                end
+            end
+        end)
+    else
+        -- Nettoyage si on coupe ou si on descend de la voiture
+        if vehicle then
+            if vehicle:FindFirstChild("EmpireCarVelocity") then vehicle.EmpireCarVelocity:Destroy() end
+            if vehicle:FindFirstChild("EmpireCarGyro") then vehicle.EmpireCarGyro:Destroy() end
+        end
+    end
+end)
+
+-- SAFE FLY ? (Empêche la voiture de glisser ou de s'écraser au sol)
+CarSection:NewToggle("Safe Fly ?", "Active une stabilisation avancée anti-crash", function(state)
+    getgenv().SafeCarFly = state
+    local vehicle = GetCurrentVehicle()
+    if vehicle then
+        vehicle.CanCollide = not state
+    end
+end)
+
+-- CAR FLY SPEED SLIDER
+CarSection:NewSlider("Car Fly Speed", "Ajuste la vitesse de vol de la voiture", 10, 250, function(value)
+    getgenv().CarFlySpeed = value
+end)
+
+-- VEHICLE FLING ? (Fait partir en toupie et voler les autres voitures au contact)
+CarSection:NewToggle("Vehicle Fling ?", "Propulse violemment les véhicules touchés", function(state)
+    getgenv().VehicleFling = state
+    RunService.Heartbeat:Connect(function()
+        if getgenv().VehicleFling then
+            local vehicle = GetCurrentVehicle()
+            if vehicle then
+                -- On applique une vitesse angulaire folle invisible pour propulser les autres au contact physique
+                vehicle.RotVelocity = Vector3.new(0, 9999, 0)
+            end
+        end
+    end)
+end)
+
+
+-- ==========================================
+-- 🏃 ONGLET : MOUVEMENTS (JOUEUR)
 -- ==========================================
 local MainSection = MainTab:NewSection("Options de Déplacement")
 
-MainSection:NewSlider("Vitesse Légitime", "Modifie ton déplacement de manière fluide", 16, 120, function(value)
-    getgenv().SpeedHack = value
-end)
-
-RunService.Stepped:Connect(function()
-    if getgenv().SpeedHack and getgenv().SpeedHack > 16 then
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChild("Humanoid")
-        if hrp and hum and hum.MoveDirection.Magnitude > 0 then
-            hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (getgenv().SpeedHack / 130))
-        end
-    end
-end)
-
-MainSection:NewToggle("Fly discret (CFrame)", "Voler sans déclencher les détections physiques", function(state)
-    getgenv().FlyBypass = state
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.Anchored = state
-    end
-end)
-
-MainSection:NewSlider("Vitesse de Vol", "Ajuste la vitesse du Fly", 1, 30, function(value)
-    getgenv().FlySpeed = value
+-- Vitesse physique forcée (Fonctionne enfin à 100%)
+MainSection:NewSlider("WalkSpeed Forcé", "Augmente directement ta vitesse", 16, 150, function(value)
+    getgenv().InfVitesse = value
 end)
 
 RunService.RenderStepped:Connect(function()
-    if getgenv().FlyBypass then
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local camCFrame = Camera.CFrame
-            local moveVector = Vector3.new(0,0,0)
-            
-            if UserInputService:IsKeyDown(Enum.KeyCode.Z) then moveVector = moveVector + camCFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVector = moveVector - camCFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveVector = moveVector - camCFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVector = moveVector + camCFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVector = moveVector + Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveVector = moveVector - Vector3.new(0,1,0) end
-            
-            hrp.CFrame = hrp.CFrame + (moveVector * (getgenv().FlySpeed / 10))
-        end
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed = getgenv().InfVitesse
     end
 end)
 
--- ==========================================
--- ONGLET : COMBAT (AIMBOT & HITBOX)
--- ==========================================
-local CombatSection = CombatTab:NewSection("Assistance de Visée")
+-- JumpPower Forcé
+MainSection:NewSlider("JumpPower Forcé", "Saute beaucoup plus haut", 50, 200, function(value)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.JumpPower = value end
+end)
 
-CombatSection:NewToggle("Grandes Hitbox", "Agrandit légèrement la tête des adversaires", function(state)
+
+-- ==========================================
+-- ⚔️ ONGLET : COMBAT (AIMBOT & HITBOX)
+-- ==========================================
+local CombatSection = CombatTab:NewSection("Assistance de Combat")
+
+CombatSection:NewToggle("Grandes Hitbox", "Agrandit la tête des cibles", function(state)
     getgenv().HitBox = state
-    if not state then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-                p.Character.Head.Size = Vector3.new(2, 1, 1)
-                p.Character.Head.Transparency = 0
-            end
-        end
-    end
 end)
 
-CombatSection:NewSlider("Taille de la Hitbox", "Définit la largeur de la zone d'impact", 2, 15, function(value)
+CombatSection:NewSlider("Taille Hitbox", "Définit le rayon de la tête", 2, 20, function(value)
     getgenv().HitboxTaille = value
 end)
 
@@ -119,8 +184,8 @@ task.spawn(function()
                     local head = p.Character:FindFirstChild("Head")
                     if head then
                         head.Size = Vector3.new(getgenv().HitboxTaille, getgenv().HitboxTaille, getgenv().HitboxTaille)
+                        head.Transparency = 0.4
                         head.CanCollide = true
-                        head.Transparency = 0.5
                     end
                 end
             end
@@ -128,111 +193,73 @@ task.spawn(function()
     end
 end)
 
-CombatSection:NewToggle("Aimbot (Maintenir Clic Droit)", "Verrouille la caméra de façon fluide", function(state)
+CombatSection:NewToggle("Silent Aim / Aimbot", "Verrouille la visée (Clic Droit)", function(state)
     getgenv().Aimbot = state
 end)
 
-local function GetClosestPlayer()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
-            if onScreen then
-                local mousePos = UserInputService:GetMouseLocation()
-                local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                if distance < shortestDistance then
-                    closestPlayer = p
-                    shortestDistance = distance
+-- Logique Aimbot Proche
+RunService.RenderStepped:Connect(function()
+    if getgenv().Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local closest = nil
+        local shortDist = math.huge
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
+                if onScreen then
+                    local mouse = UserInputService:GetMouseLocation()
+                    local dist = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
+                    if dist < shortDist then closest = p; shortDist = dist end
                 end
             end
         end
-    end
-    return closestPlayer
-end
-
-RunService.RenderStepped:Connect(function()
-    if getgenv().Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = GetClosestPlayer()
-        if target and target.Character and target.Character:FindFirstChild("Head") then
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.2)
+        if closest then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position), 0.2)
         end
     end
 end)
 
--- ==========================================
--- ONGLET : VISUALS (ESP)
--- ==========================================
-local VisualsSection = VisualsTab:NewSection("Vision à travers les structures")
 
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-    local function BaseESP(char)
-        local head = char:WaitForChild("Head", 5)
-        if head and not head:FindFirstChild("EmpireESP") then
-            local BB = Instance.new("BillboardGui")
-            BB.Name = "EmpireESP"
-            BB.Size = UDim2.new(4, 0, 2, 0)
-            BB.AlwaysOnTop = true
-            
-            local TL = Instance.new("TextLabel", BB)
-            TL.Text = player.Name .. " [" .. math.round(player:DistanceFromCharacter(head.Position)) .. "m]"
-            TL.TextColor3 = Color3.fromRGB(255, 255, 255)
-            TL.BackgroundTransparency = 1
-            TL.TextSize = 14
-            TL.Size = UDim2.new(1, 0, 1, 0)
-            
-            BB.Parent = head
-        end
-    end
-    if player.Character then BaseESP(player.Character) end
-    player.CharacterAdded:Connect(BaseESP)
-end
+-- ==========================================
+-- 👀 ONGLET : VISUALS (ESP)
+-- ==========================================
+local VisualsSection = VisualsTab:NewSection("Vision de l'Empire")
 
-VisualsSection:NewToggle("ESP Joueurs & Distance", "Voir l'emplacement exact des joueurs", function(state)
+VisualsSection:NewToggle("ESP Joueurs Complet", "Affiche la position des ennemis", function(state)
     getgenv().ESP = state
     if state then
-        for _, v in pairs(Players:GetPlayers()) do CreateESP(v) end
-        getgenv().EmpirePlayerConnection = Players.PlayerAdded:Connect(CreateESP)
+        getgenv().EmpireConnection = Players.PlayerAdded:Connect(function(p)
+            p.CharacterAdded:Connect(function(char)
+                local head = char:WaitForChild("Head", 5)
+                if head then
+                    local B = Instance.new("BillboardGui", head)
+                    B.Name = "EmpireESP"
+                    B.Size = UDim2.new(4,0,2,0)
+                    B.AlwaysOnTop = true
+                    local T = Instance.new("TextLabel", B)
+                    T.Size = UDim2.new(1,0,1,0)
+                    T.Text = p.Name
+                    T.TextColor3 = Color3.fromRGB(255, 0, 0)
+                    T.BackgroundTransparency = 1
+                end
+            end)
+        end)
     else
-        if getgenv().EmpirePlayerConnection then getgenv().EmpirePlayerConnection:Disconnect() end
+        if getgenv().EmpireConnection then getgenv().EmpireConnection:Disconnect() end
         for _, v in pairs(Players:GetPlayers()) do
-            if v.Character and v.Character:FindFirstChild("Head") then
-                local esp = v.Character.Head:FindFirstChild("EmpireESP")
-                if esp then esp:Destroy() end
+            if v.Character and v.Character:FindFirstChild("Head") and v.Character.Head:FindFirstChild("EmpireESP") then
+                v.Character.Head.EmpireESP:Destroy()
             end
         end
     end
 end)
 
--- ==========================================
--- ONGLET : CONFIGURATION (MISC)
--- ==========================================
-local MiscSection = MiscTab:NewSection("Gestion Serveur")
 
-MiscSection:NewButton("Rejoindre le même Serveur", "Relance la session actuelle", function()
-    TeleportService:Teleport(game.PlaceId, LocalPlayer)
-end)
-
-MiscSection:NewButton("Changer de Serveur (Hop)", "Trouve une autre instance publique disponible", function()
-    local Api = "https://games.roblox.com/v1/games/"
-    local _place = game.PlaceId
-    local _servers = Api.._place.."/servers/Public?sortOrder=Asc&limit=100"
-    
-    local function ListServers(cursor)
-        local success, raw = pcall(function() return game:HttpGet(_servers .. ((cursor and "&cursor="..cursor) or "")) end)
-        if success then return HttpService:JSONDecode(raw) end
-    end
-    
-    local Next;
-    local Servers = ListServers(Next)
-    if Servers and Servers.data then
-        for _, server in pairs(Servers.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(_place, server.id, LocalPlayer)
-                break
-            end
-        end
-    end
+-- ==========================================
+-- 👥 ONGLET : CREDITS & DISCORD
+-- ==========================================
+local CreditsSection = CreditsTab:NewSection("Créateurs & Communauté")
+CreditsSection:NewLabel("Développeurs principaux : KTH X Obscra")
+CreditsSection:NewLabel("Propriété exclusive de : Empire Zéro")
+CreditsSection:NewButton("Copier le lien Discord", "Copie l'invitation dans ton presse-papier", function()
+    setclipboard("discord.gg/empirezero")
 end)
