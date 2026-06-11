@@ -1,5 +1,5 @@
 -- =======================================================================
--- 🌐 EMPIRE ZÉRO v6.2 | ULTIMATE STABILITY & FIX UPDATE | REFAIT À NEUF
+-- 🌐 EMPIRE ZÉRO v6.2 | ULTIMATE STABILITY & FIX UPDATE | COMPLET
 -- =======================================================================
 
 local Players = game:GetService("Players")
@@ -12,12 +12,12 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Tables de gestion strictes (Garbage Collection garanti)
+-- Tables de gestion strictes (Garbage Collection garanti pour éviter les lags)
 local ESPConnections = {}
 local CharacterConnections = {}
 local FlySessionToken = 0
 
--- 🛡️ PROTECTION / BYPASS SÉCURISÉ (Vérification stricte de la structure)
+-- 🛡️ PROTECTION / BYPASS SÉCURISÉ (Vérification de la structure Namecall)
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
@@ -30,24 +30,32 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     return oldNamecall(self, ...)
 end)
 
--- 🎨 LIBRAIRIE GRAPHIQUE (Kavo UI)
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+-- 🎨 CHARGEMENT SÉCURISÉ DE LA LIBRAIRIE GRAPHIQUE (Kavo UI)
+local success, Kavo = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+end)
+
+if not success or not Kavo then
+    warn("⚠️ [EMPIRE ZÉRO] Échec du chargement de Kavo UI depuis GitHub. Vérifie ton exécuteur ou ta connexion.")
+    return
+end
+
 local Window = Kavo.CreateLib("EMPIRE ZÉRO v6.2 - Haute Stabilité", "DarkTheme")
 
--- Configuration Globale
+-- Configuration Globale Initiale
 getgenv().CarFlySpeed = 50
 getgenv().InfVitesse = 16
 getgenv().HitboxTaille = 2
 
--- Onglets
+-- Création des Onglets
 local MainTab = Window:NewTab("Mouvements")
 local CombatTab = Window:NewTab("Combat")
 local CarTab = Window:NewTab("Car Mods")
 local VisualsTab = Window:NewTab("Visuals")
 
--- ==========================================
--- 🚗 CAR MODS
--- ==========================================
+-- =======================================================================
+-- 🚗 SECTION : CAR MODS
+-- =======================================================================
 local CarSection = CarTab:NewSection("Car Mod Options")
 
 local function GetCurrentVehicle()
@@ -102,7 +110,7 @@ CarSection:NewToggle("Car Fly", "Permet de faire voler votre véhicule", functio
             end)
         end
     else
-        FlySessionToken = FlySessionToken + 1 -- Invalide instantanément la boucle parallèle
+        FlySessionToken = FlySessionToken + 1 -- Invalide instantanément la boucle parallèle active
         if vehicle then
             local gyro = vehicle:FindFirstChild("EmpireCarGyro")
             local vel = vehicle:FindFirstChild("EmpireCarVelocity")
@@ -143,4 +151,176 @@ CarSection:NewToggle("Vehicle Fling ?", "Propulse les véhicules au contact", fu
     else
         if FlingConnection then 
             FlingConnection:Disconnect() 
-            FlingConnection
+            FlingConnection = nil
+        end
+        local vehicle = GetCurrentVehicle()
+        if vehicle then vehicle.RotVelocity = Vector3.new(0, 0, 0) end
+    end
+end)
+
+-- =======================================================================
+-- 🏃 SECTION : MOUVEMENTS JOUEUR
+-- =======================================================================
+local MainSection = MainTab:NewSection("Options de Déplacement")
+
+MainSection:NewSlider("WalkSpeed Forcé", "Modifier la vitesse", 16, 150, function(value)
+    getgenv().InfVitesse = value
+end)
+
+RunService.PostSimulation:Connect(function()
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.WalkSpeed ~= getgenv().InfVitesse then
+        if not hum.SeatPart then -- Évite de casser la physique si le joueur est assis dans une voiture
+            hum.WalkSpeed = getgenv().InfVitesse
+        end
+    end
+end)
+
+MainSection:NewSlider("JumpPower Forcé", "Sauter plus haut", 50, 200, function(value)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then 
+        hum.UseJumpPower = true
+        hum.JumpPower = value 
+    end
+end)
+
+-- =======================================================================
+-- ⚔️ SECTION : COMBAT (HITBOX & AIMBOT)
+-- =======================================================================
+local CombatSection = CombatTab:NewSection("Assistance de Combat")
+
+CombatSection:NewToggle("Grandes Hitbox", "Agrandit la tête des cibles", function(state)
+    getgenv().HitBox = state
+    if not state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                if head then
+                    head.Size = Vector3.new(2, 2, 2)
+                    head.Transparency = 0
+                end
+            end
+        end
+    end
+end)
+
+CombatSection:NewSlider("Taille Hitbox", "Rayon de la tête", 2, 20, function(value)
+    getgenv().HitboxTaille = value
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.8) -- Latence optimisée pour préserver les FPS du jeu
+        if getgenv().HitBox then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local head = p.Character:FindFirstChild("Head")
+                    if head and head.Size.X ~= getgenv().HitboxTaille then
+                        head.Size = Vector3.new(getgenv().HitboxTaille, getgenv().HitboxTaille, getgenv().HitboxTaille)
+                        head.Transparency = 0.4
+                        head.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end)
+
+CombatSection:NewToggle("Silent Aim / Aimbot", "Verrouille la visée (Clic Droit)", function(state)
+    getgenv().Aimbot = state
+end)
+
+RunService.RenderStepped:Connect(function()
+    if getgenv().Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local closest = nil
+        local shortDist = math.huge
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
+                if onScreen then
+                    local mouse = UserInputService:GetMouseLocation()
+                    local dist = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
+                    if dist < shortDist then closest = p; shortDist = dist end
+                end
+            end
+        end
+        if closest and closest.Character and closest.Character:FindFirstChild("Head") then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position), 0.15)
+        end
+    end
+end)
+
+-- ==========================================
+-- 👀 SECTION : VISUALS (ESP ANTI-LAG)
+-- ==========================================
+local VisualsSection = VisualsTab:NewSection("Vision de l'Empire")
+
+local function ApplyBillboard(p, character)
+    if not character then return end
+    local head = character:WaitForChild("Head", 5)
+    if head and not head:FindFirstChild("EmpireESP") then
+        local B = Instance.new("BillboardGui")
+        B.Name = "EmpireESP"
+        B.Size = UDim2.new(4,0,2,0)
+        B.AlwaysOnTop = true
+        B.Parent = head
+        
+        local T = Instance.new("TextLabel")
+        T.Size = UDim2.new(1,0,1,0)
+        T.Text = p.Name
+        T.TextColor3 = Color3.fromRGB(255, 0, 0)
+        T.BackgroundTransparency = 1
+        T.TextSize = 14
+        T.Parent = B
+    end
+end
+
+local function CreateESP(p)
+    if p == LocalPlayer then return end
+    
+    if CharacterConnections[p] then
+        CharacterConnections[p]:Disconnect()
+    end
+    
+    CharacterConnections[p] = p.CharacterAdded:Connect(function(char)
+        if getgenv().ESP then
+            ApplyBillboard(p, char)
+        end
+    end)
+    
+    if p.Character then
+        ApplyBillboard(p, p.Character)
+    end
+end
+
+local function RemoveESP(p)
+    if CharacterConnections[p] then
+        CharacterConnections[p]:Disconnect()
+        CharacterConnections[p] = nil
+    end
+    if p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("EmpireESP") then
+        p.Character.Head.EmpireESP:Destroy()
+    end
+end
+
+VisualsSection:NewToggle("ESP Joueurs Complet", "Affiche la position des ennemis", function(state)
+    getgenv().ESP = state
+    if state then
+        for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+        ESPConnections["PlayerAdded"] = Players.PlayerAdded:Connect(CreateESP)
+        ESPConnections["PlayerRemoving"] = Players.PlayerRemoving:Connect(RemoveESP)
+    else
+        if ESPConnections["PlayerAdded"] then ESPConnections["PlayerAdded"]:Disconnect() end
+        if ESPConnections["PlayerRemoving"] then ESPConnections["PlayerRemoving"]:Disconnect() end
+        ESPConnections = {}
+        
+        for _, p in pairs(Players:GetPlayers()) do
+            RemoveESP(p)
+        end
+        CharacterConnections = {} -- Vide totalement la table pour libérer la RAM
+    end
+end)
+
+print("✅ [EMPIRE ZÉRO] Version 6.2 chargée et active avec succès !")
