@@ -1,10 +1,7 @@
 -- =======================================================================
---  🌐 EMPIRE ZÉRO v3.0 | SÉCURITÉ MAXIMUM | Développé par KTH X OBSCRA 
+--  🌐 EMPIRE ZÉRO v5.0 | INTERFACE SÉCURISÉE | Développé par KTH
 -- =======================================================================
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/GreenDeno/Venyx-UI-Library/main/source.lua"))()
-local venyx = library.new("EMPIRE ZÉRO v3.0 - BY KTH", 5013109572)
 
--- Services Roblox essentiels
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
@@ -15,34 +12,37 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- ==========================================
--- 🛡️ SYSTEME SECURITÉ MAXIMUM (ANTI-BAN / BYPASS)
--- ==========================================
--- Bypass basique des logs d'erreurs envoyés aux serveurs du jeu
+-- 🛡️ PROTECTION ANTI-BAN (Interception des signaux de report/kick/ban)
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
-    if method == "FireServer" and tostring(self):lower():find("cheat") or tostring(self):lower():find("ban") then
-        -- Si le jeu essaie d'envoyer une requête de ban, on simule un crash pour te déconnecter direct
-        LocalPlayer:Kick("[EMPIRE ZÉRO] Kick Préventif : Tentative de Ban du serveur bloquée avec succès !")
+    if method == "FireServer" and (tostring(self):lower():find("cheat") or tostring(self):lower():find("ban") or tostring(self):lower():find("kick")) then
+        -- On bloque silencieusement la tentative du jeu de te bannir ou de te kick
         return nil
     end
     return oldNamecall(self, ...)
 end)
 
--- Pages de l'interface
-local main = venyx:addPage("Main", 5012544693)
-local combat = venyx:addPage("Combat", 5012544693)
-local visuals = venyx:addPage("Visuals", 5012544693)
-local misc = venyx:addPage("Misc", 5012544693)
+-- 🎨 CHARGEMENT DE L'INTERFACE (Kavo UI Library - Version Bypass)
+local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Kavo.CreateLib("EMPIRE ZÉRO v5.0 - BY KTH", "DarkTheme")
+
+-- Configuration par défaut
+getgenv().FlySpeed = 10
+getgenv().HitboxTaille = 2
+
+-- Onglets principaux
+local MainTab = Window:NewTab("Mouvements")
+local CombatTab = Window:NewTab("Combat")
+local VisualsTab = Window:NewTab("Visuals")
+local MiscTab = Window:NewTab("Configuration")
 
 -- ==========================================
--- SECTION : MAIN (MOUVEMENTS BYPASS)
+-- ONGLET : MOUVEMENTS (VITESSE & FLY)
 -- ==========================================
-local mainSection = main:addSection("Mouvements")
+local MainSection = MainTab:NewSection("Options de Déplacement")
 
--- Vitesse bypass (Modifie le CFrame, pas le WalkSpeed qui fait ban)
-mainSection:addSlider("Vitesse Légitime", 16, 100, 16, function(value)
+MainSection:NewSlider("Vitesse Légitime", "Modifie ton déplacement de manière fluide", 16, 120, function(value)
     getgenv().SpeedHack = value
 end)
 
@@ -52,19 +52,22 @@ RunService.Stepped:Connect(function()
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChild("Humanoid")
         if hrp and hum and hum.MoveDirection.Magnitude > 0 then
-            hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (getgenv().SpeedHack / 100))
+            hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (getgenv().SpeedHack / 130))
         end
     end
 end)
 
--- Fly discret (Bypass sans BodyVelocity)
-mainSection:addToggle("Fly (Bypass CFrame)", nil, function(state)
+MainSection:NewToggle("Fly discret (CFrame)", "Voler sans déclencher les détections physiques", function(state)
     getgenv().FlyBypass = state
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
-        hrp.Anchored = state -- On ancre pour bloquer les calculs de chute du serveur
+        hrp.Anchored = state
     end
+end)
+
+MainSection:NewSlider("Vitesse de Vol", "Ajuste la vitesse du Fly", 1, 30, function(value)
+    getgenv().FlySpeed = value
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -82,39 +85,50 @@ RunService.RenderStepped:Connect(function()
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVector = moveVector + Vector3.new(0,1,0) end
             if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveVector = moveVector - Vector3.new(0,1,0) end
             
-            hrp.CFrame = hrp.CFrame + (moveVector * ((getgenv().FlySpeed or 10) / 10))
+            hrp.CFrame = hrp.CFrame + (moveVector * (getgenv().FlySpeed / 10))
         end
     end
 end)
 
-mainSection:addSlider("Vitesse de Vol", 1, 50, 10, function(value)
-    getgenv().FlySpeed = value
+-- ==========================================
+-- ONGLET : COMBAT (AIMBOT & HITBOX)
+-- ==========================================
+local CombatSection = CombatTab:NewSection("Assistance de Visée")
+
+CombatSection:NewToggle("Grandes Hitbox", "Agrandit légèrement la tête des adversaires", function(state)
+    getgenv().HitBox = state
+    if not state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                p.Character.Head.Size = Vector3.new(2, 1, 1)
+                p.Character.Head.Transparency = 0
+            end
+        end
+    end
 end)
 
--- ==========================================
--- SECTION : COMBAT (AIMBOT, HITBOX & AUTOFARM)
--- ==========================================
-local combatSection = combat:addSection("Assistance de Combat")
+CombatSection:NewSlider("Taille de la Hitbox", "Définit la largeur de la zone d'impact", 2, 15, function(value)
+    getgenv().HitboxTaille = value
+end)
 
--- Hitbox Légitime / Grandie (Agrandit la tête des ennemis pour ne jamais rater)
-combatSection:addToggle("Grandes Hitbox (Tête)", nil, function(state)
-    getgenv().HitBox = state
-    while getgenv().HitBox and task.wait(1) do
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local head = p.Character:FindFirstChild("Head")
-                if head then
-                    head.Size = state and Vector3.new(5, 5, 5) or Vector3.new(2, 1, 1)
-                    head.CanCollide = true
-                    head.Transparency = state and 0.5 or 0
+task.spawn(function()
+    while task.wait(1) do
+        if getgenv().HitBox then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local head = p.Character:FindFirstChild("Head")
+                    if head then
+                        head.Size = Vector3.new(getgenv().HitboxTaille, getgenv().HitboxTaille, getgenv().HitboxTaille)
+                        head.CanCollide = true
+                        head.Transparency = 0.5
+                    end
                 end
             end
         end
     end
 end)
 
--- Silent Aimbot (Verrouille la caméra sur le joueur le plus proche)
-combatSection:addToggle("Aimbot Caméra", nil, function(state)
+CombatSection:NewToggle("Aimbot (Maintenir Clic Droit)", "Verrouille la caméra de façon fluide", function(state)
     getgenv().Aimbot = state
 end)
 
@@ -138,43 +152,19 @@ local function GetClosestPlayer()
 end
 
 RunService.RenderStepped:Connect(function()
-    if getgenv().Aimbot then
+    if getgenv().Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local target = GetClosestPlayer()
         if target and target.Character and target.Character:FindFirstChild("Head") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.2)
         end
     end
 end)
 
--- AutoFarm Sécurisé (Frappe avec délai aléatoire pour simuler un humain)
-combatSection:addToggle("AutoFarm Humanoïde", nil, function(state)
-    getgenv().AutoFarm = state
-    while getgenv().AutoFarm do
-        local char = LocalPlayer.Character
-        if char then
-            for _, v in pairs(Workspace:GetChildren()) do
-                if not getgenv().AutoFarm then break end
-                if v:FindFirstChild("Humanoid") and v ~= char and v:FindFirstChild("HumanoidRootPart") then
-                    -- Téléportation discrète derrière la cible
-                    char.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-                    
-                    local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
-                    if tool then
-                        if tool.Parent == LocalPlayer.Backpack then char.Humanoid:EquipTool(tool) end
-                        tool:Activate()
-                    end
-                    task.wait(0.25) -- Délai humain pour éviter les détections automatiques
-                end
-            end
-        end
-        task.wait(0.5)
-    end
-end)
-
 -- ==========================================
--- SECTION : VISUALS (ESP PARFAIT)
+-- ONGLET : VISUALS (ESP)
 -- ==========================================
-local visualsSection = visuals:addSection("Empire Visuals")
+local VisualsSection = VisualsTab:NewSection("Vision à travers les structures")
 
 local function CreateESP(player)
     if player == LocalPlayer then return end
@@ -188,9 +178,9 @@ local function CreateESP(player)
             
             local TL = Instance.new("TextLabel", BB)
             TL.Text = player.Name .. " [" .. math.round(player:DistanceFromCharacter(head.Position)) .. "m]"
-            TL.TextColor3 = Color3.fromRGB(255, 30, 30)
+            TL.TextColor3 = Color3.fromRGB(255, 255, 255)
             TL.BackgroundTransparency = 1
-            TL.TextSize = 16
+            TL.TextSize = 14
             TL.Size = UDim2.new(1, 0, 1, 0)
             
             BB.Parent = head
@@ -200,7 +190,7 @@ local function CreateESP(player)
     player.CharacterAdded:Connect(BaseESP)
 end
 
-visualsSection:addToggle("ESP Joueurs & Distance", nil, function(state)
+VisualsSection:NewToggle("ESP Joueurs & Distance", "Voir l'emplacement exact des joueurs", function(state)
     getgenv().ESP = state
     if state then
         for _, v in pairs(Players:GetPlayers()) do CreateESP(v) end
@@ -217,15 +207,15 @@ visualsSection:addToggle("ESP Joueurs & Distance", nil, function(state)
 end)
 
 -- ==========================================
--- SECTION : MISC (TELEPORTATION & SERVEURS)
+-- ONGLET : CONFIGURATION (MISC)
 -- ==========================================
-local miscSection = misc:addSection("Empire Utilitaires")
+local MiscSection = MiscTab:NewSection("Gestion Serveur")
 
-miscSection:addButton("Rejoindre le même Serveur", function()
+MiscSection:NewButton("Rejoindre le même Serveur", "Relance la session actuelle", function()
     TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
 
-miscSection:addButton("Changer de Serveur (Hop)", function()
+MiscSection:NewButton("Changer de Serveur (Hop)", "Trouve une autre instance publique disponible", function()
     local Api = "https://games.roblox.com/v1/games/"
     local _place = game.PlaceId
     local _servers = Api.._place.."/servers/Public?sortOrder=Asc&limit=100"
@@ -246,6 +236,3 @@ miscSection:addButton("Changer de Serveur (Hop)", function()
         end
     end
 end)
-
--- Initialisation
-venyx:SelectPage(venyx.pages[1], true)
