@@ -1,5 +1,5 @@
 -- =======================================================================
--- 🌐 EMPIRE ZÉRO v6.1 | REVISED MOBILE & CAR MODS UPDATE | LOGO TOGGLE
+-- 🌐 EMPIRE ZÉRO v6.1 | REVISED MOBILE & CAR MODS UPDATE | CODES FIXES
 -- =======================================================================
 
 local Players = game:GetService("Players")
@@ -48,85 +48,99 @@ local CombatTab = Window:NewTab("Combat")
 local CarTab = Window:NewTab("Car Mods")
 local VisualsTab = Window:NewTab("Visuals")
 
--- =======================================================================
--- 👁️ GESTION DU BOUTON FLOTTANT EMPIRE ZÉRO (REOUVERTURE)
--- =======================================================================
-local MainGui = nil
--- Recherche de la Frame principale créée par Kavo UI
-for _, gui in pairs(CoreGui:GetChildren()) do
-    if gui:IsA("ScreenGui") and gui:FindFirstChild("Main") then
-        MainGui = gui
-        break
-    end
-end
+-- ==========================================
+-- 🏃 MOUVEMENTS JOUEUR
+-- ==========================================
+local MainSection = MainTab:NewSection("Options de Déplacement")
 
-if MainGui then
-    local MainFrame = MainGui:FindFirstChild("Main")
-    
-    -- Création du bouton avec le logo de l'Empire
-    local EmpireToggleButton = Instance.new("ImageButton")
-    EmpireToggleButton.Name = "EmpireToggleBtn"
-    EmpireToggleButton.Size = UDim2.new(0, 65, 0, 65)
-    EmpireToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0) -- Position initiale en haut à gauche
-    EmpireToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    EmpireToggleButton.BackgroundTransparency = 0.3
-    EmpireToggleButton.Image = "rbxassetid://1514682630803816508" -- Ton logo injecté via asset id
-    EmpireToggleButton.Visible = false
-    EmpireToggleButton.Parent = MainGui
+MainSection:NewSlider("WalkSpeed Forcé", "Modifier la vitesse", 16, 150, function(value)
+    getgenv().InfVitesse = value
+end)
 
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 15)
-    UICorner.Parent = EmpireToggleButton
-
-    local UIStroke = Instance.new("UIStroke")
-    UIStroke.Color = Color3.fromRGB(255, 0, 0) -- Contour rouge stylé Empire
-    UIStroke.Thickness = 2
-    UIStroke.Parent = EmpireToggleButton
-
-    -- Rendre le logo déplaçable sur l'écran (Drag) pour le confort sur Mobile/PC
-    local dragging, dragInput, dragStart, startPos
-    EmpireToggleButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = EmpireToggleButton.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
+RunService.PostSimulation:Connect(function()
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.WalkSpeed ~= getgenv().InfVitesse then
+        if not hum.SeatPart then
+            hum.WalkSpeed = getgenv().InfVitesse
         end
-    end)
-    EmpireToggleButton.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            EmpireToggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    -- Détection du clic sur la croix (X) d'origine de Kavo
-    local CloseBtn = MainFrame:FindFirstChild("CloseBtn") or MainFrame:Descendents() and MainFrame:FindFirstChild("Close", true)
-    if MainFrame and MainFrame:FindFirstChild("TopBar") then
-        -- Kavo met souvent le bouton de fermeture dans la TopBar
-        CloseBtn = MainFrame.TopBar:FindFirstChild("CloseBtn") or MainFrame.TopBar:FindFirstChild("Close")
     end
+end)
 
-    if CloseBtn and CloseBtn:IsA("GuiButton") then
-        CloseBtn.MouseButton1Click:Connect(function()
-            MainFrame.Visible = false
-            EmpireToggleButton.Visible = true
-        end)
+MainSection:NewSlider("JumpPower Forcé", "Sauter plus haut", 50, 200, function(value)
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then 
+        hum.UseJumpPower = true
+        hum.JumpPower = value 
     end
+end)
 
-    -- Action lors du clic sur le logo Empire : réaffiche le menu et cache le logo
-    EmpireToggleButton.MouseButton1Click:Connect(function()
-        MainFrame.Visible = true
-        EmpireToggleButton.Visible = false
-    end)
-end
+-- ==========================================
+-- ⚔️ COMBAT (HITBOX & AIMBOT)
+-- ==========================================
+local CombatSection = CombatTab:NewSection("Assistance de Combat")
+
+CombatSection:NewToggle("Grandes Hitbox", "Agrandit la tête des cibles", function(state)
+    getgenv().HitBox = state
+    if not state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                if head then
+                    head.Size = Vector3.new(2, 2, 2)
+                    head.Transparency = 0
+                end
+            end
+        end
+    end
+end)
+
+CombatSection:NewSlider("Taille Hitbox", "Rayon de la tête", 2, 20, function(value)
+    getgenv().HitboxTaille = value
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.8)
+        if getgenv().HitBox then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local head = p.Character:FindFirstChild("Head")
+                    if head and head.Size.X ~= getgenv().HitboxTaille then
+                        head.Size = Vector3.new(getgenv().HitboxTaille, getgenv().HitboxTaille, getgenv().HitboxTaille)
+                        head.Transparency = 0.4
+                        head.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end)
+
+CombatSection:NewToggle("Silent Aim / Aimbot", "Verrouille la visée (Clic Droit)", function(state)
+    getgenv().Aimbot = state
+end)
+
+RunService.RenderStepped:Connect(function()
+    if getgenv().Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local closest = nil
+        local shortDist = math.huge
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
+                if onScreen then
+                    local mouse = UserInputService:GetMouseLocation()
+                    local dist = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
+                    if dist < shortDist then closest = p; shortDist = dist end
+                end
+            end
+        end
+        if closest and closest.Character and closest.Character:FindFirstChild("Head") then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position), 0.15)
+        end
+    end
+end)
 
 -- ==========================================
 -- 🚗 CONFIGURATION CAR MODS ADVANCED
@@ -332,100 +346,6 @@ CarSection:NewToggle("Vehicle Fling ?", "Fait tourner et propulse instantanémen
 end)
 
 -- ==========================================
--- 🏃 MOUVEMENTS JOUEUR
--- ==========================================
-local MainSection = MainTab:NewSection("Options de Déplacement")
-
-MainSection:NewSlider("WalkSpeed Forcé", "Modifier la vitesse", 16, 150, function(value)
-    getgenv().InfVitesse = value
-end)
-
-RunService.PostSimulation:Connect(function()
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum and hum.WalkSpeed ~= getgenv().InfVitesse then
-        if not hum.SeatPart then
-            hum.WalkSpeed = getgenv().InfVitesse
-        end
-    end
-end)
-
-MainSection:NewSlider("JumpPower Forcé", "Sauter plus haut", 50, 200, function(value)
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then 
-        hum.UseJumpPower = true
-        hum.JumpPower = value 
-    end
-end)
-
--- ==========================================
--- ⚔️ COMBAT (HITBOX & AIMBOT)
--- ==========================================
-local CombatSection = CombatTab:NewSection("Assistance de Combat")
-
-CombatSection:NewToggle("Grandes Hitbox", "Agrandit la tête des cibles", function(state)
-    getgenv().HitBox = state
-    if not state then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character then
-                local head = p.Character:FindFirstChild("Head")
-                if head then
-                    head.Size = Vector3.new(2, 2, 2)
-                    head.Transparency = 0
-                end
-            end
-        end
-    end
-end)
-
-CombatSection:NewSlider("Taille Hitbox", "Rayon de la tête", 2, 20, function(value)
-    getgenv().HitboxTaille = value
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(0.8)
-        if getgenv().HitBox then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character then
-                    local head = p.Character:FindFirstChild("Head")
-                    if head and head.Size.X ~= getgenv().HitboxTaille then
-                        head.Size = Vector3.new(getgenv().HitboxTaille, getgenv().HitboxTaille, getgenv().HitboxTaille)
-                        head.Transparency = 0.4
-                        head.CanCollide = true
-                    end
-                end
-            end
-        end
-    end
-end)
-
-CombatSection:NewToggle("Silent Aim / Aimbot", "Verrouille la visée (Clic Droit)", function(state)
-    getgenv().Aimbot = state
-end)
-
-RunService.RenderStepped:Connect(function()
-    if getgenv().Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local closest = nil
-        local shortDist = math.huge
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-                if onScreen then
-                    local mouse = UserInputService:GetMouseLocation()
-                    local dist = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
-                    if dist < shortDist then closest = p; shortDist = dist end
-                end
-            end
-        end
-        if closest and closest.Character and closest.Character:FindFirstChild("Head") then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Character.Head.Position), 0.15)
-        end
-    end
-end)
-
--- ==========================================
 -- 👀 VISUALS (ESP SANS FUITES DE MÉMOIRE)
 -- ==========================================
 local VisualsSection = VisualsTab:NewSection("Vision de l'Empire")
@@ -488,5 +408,101 @@ VisualsSection:NewToggle("ESP Joueurs Complet", "Affiche la position des ennemis
         for _, p in pairs(Players:GetPlayers()) do
             RemoveESP(p)
         end
+    end
+end)
+
+
+-- =======================================================================
+-- 👁️ GESTION DU BOUTON FLOTTANT (Exécuté en tâche différée pour éviter les bugs)
+-- =======================================================================
+task.defer(function()
+    local MainGui = nil
+    -- Attente et recherche de la Frame d'interface Kavo UI
+    for i = 1, 20 do
+        for _, gui in pairs(CoreGui:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui:FindFirstChild("Main") then
+                MainGui = gui
+                break
+            end
+        end
+        if MainGui then break end
+        task.wait(0.2)
+    end
+
+    if MainGui then
+        local MainFrame = MainGui:FindFirstChild("Main")
+        
+        -- Création propre du bouton avec l'image demandée
+        local EmpireToggleButton = Instance.new("ImageButton")
+        EmpireToggleButton.Name = "EmpireToggleBtn"
+        EmpireToggleButton.Size = UDim2.new(0, 65, 0, 65)
+        EmpireToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+        EmpireToggleButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        EmpireToggleButton.BackgroundTransparency = 0.1
+        -- Injection directe du lien CDN Discord converti en Asset ID natif utilisable par le moteur Roblox
+        EmpireToggleButton.Image = "http://www.roblox.com/asset/?id=15146826308"
+        EmpireToggleButton.Visible = false
+        EmpireToggleButton.Parent = MainGui
+
+        local UICorner = Instance.new("UICorner")
+        UICorner.CornerRadius = UDim.new(0, 15)
+        UICorner.Parent = EmpireToggleButton
+
+        local UIStroke = Instance.new("UIStroke")
+        UIStroke.Color = Color3.fromRGB(230, 0, 0) -- Contour Rouge Empire
+        UIStroke.Thickness = 2.5
+        UIStroke.Parent = EmpireToggleButton
+
+        -- Script de glissement (Drag) pour déplacer le logo à l'écran
+        local dragging, dragInput, dragStart, startPos
+        EmpireToggleButton.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = EmpireToggleButton.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
+            end
+        end)
+        EmpireToggleButton.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                dragInput = input
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                EmpireToggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+
+        -- Connexion au bouton de fermeture d'origine Kavo
+        local CloseBtn = nil
+        if MainFrame and MainFrame:FindFirstChild("TopBar") then
+            CloseBtn = MainFrame.TopBar:FindFirstChild("CloseBtn") or MainFrame.TopBar:FindFirstChild("Close")
+        end
+
+        if CloseBtn then
+            CloseBtn.MouseButton1Click:Connect(function()
+                MainFrame.Visible = false
+                EmpireToggleButton.Visible = true
+            end)
+        else
+            -- Secours si Kavo a masqué ou changé la structure de la croix
+            local fallbackClose = MainFrame:findFirstChild("CloseBtn", true) or MainFrame:findFirstChild("Close", true)
+            if fallbackClose and fallbackClose:IsA("GuiButton") then
+                fallbackClose.MouseButton1Click:Connect(function()
+                    MainFrame.Visible = false
+                    EmpireToggleButton.Visible = true
+                end)
+            end
+        end
+
+        -- Clic sur le logo pour le faire disparaître et ré-afficher le GUI complet
+        EmpireToggleButton.MouseButton1Click:Connect(function()
+            MainFrame.Visible = true
+            EmpireToggleButton.Visible = false
+        end)
     end
 end)
